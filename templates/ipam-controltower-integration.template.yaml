@@ -1,0 +1,305 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS IPAM & ControlTower Integration.
+Parameters:
+  NetworkAccountId:
+    Type: String
+    MinLength: '1'
+    Description: Account Id for the Networking account.
+  IpamPoolPrefixLength:
+    Type: String
+    MinLength: '1'
+    Description: Prefix Length for Regional IPAM Pools
+    Default: 20  
+  AccPoolPrefixLength:
+    Type: String
+    MinLength: '1'
+    Description: Prefix Length for Regional IPAM Pools
+    Default: 21
+  AccEnvName:
+    Type: CommaDelimitedList
+    Description: Env Name for Accounts within a Region
+    Default : Prod OU,SDLC OU
+  TopLevelPoolCidr:
+    Type: String
+    MinLength: '1'
+    Description: Top level pool for the Control Tower environment.
+    Default: 192.168.0.0/16
+  RegionSelection:
+    Description: Regions for IPAM Sub-Pool creation
+    Type: CommaDelimitedList
+    Default: us-west-2,us-east-1        
+  IpamScope:
+    Type: String
+    MinLength: '1'
+    Description: Top level IPAM Scope for the Control Tower environment.
+  LambdaBucket:
+    Type: String
+    MinLength: '1'
+    AllowedPattern: '[a-zA-Z0-9-.]*'
+    Description: The prefix of the S3 bucket containing the Lambda package and templates.
+    Default: marketplace-sa-resources 
+  LambdaPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    Default: ct-blogs-content/ctipam-public-resources/packages/
+    Type: String
+  RepoRootURL:
+    Type: String
+    Description: The full path to the S3 bucket containing the YAML resources.
+    Default: https://marketplace-sa-resources.s3.amazonaws.com/ct-blogs-content/ctipam-public-resources/templates
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: Centralized Networking Resources
+        Parameters:
+          - NetworkAccountId
+      - Label:
+          default: Lambda Source Repository
+        Parameters:
+            - LambdaBucket
+            - LambdaPrefix          
+Resources:
+  CreateAccountLifeCycleRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      Description: Life Cycle for CreateManagedAccount
+      EventPattern:
+        source:
+          - aws.controltower
+        detail-type:
+          - AWS Service Event via CloudTrail
+        detail:
+          eventSource:
+            - controltower.amazonaws.com
+          eventName:
+            - CreateManagedAccount
+          userAgent:
+            - AWS Internal
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt 
+            - CTIPAMLifeCycleLambda
+            - Arn
+          Id: CreateAccountLifeCycle
+  CreateAccountLifeCycleRulePermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !Ref CTIPAMLifeCycleLambda
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt 
+        - CreateAccountLifeCycleRule
+        - Arn       
+  IpamSnsTopic:
+    Type : AWS::SNS::Topic
+    Properties:
+        TopicName: 'IpamSnsTopic'
+        DisplayName: 'IpamSnsTopic'
+        Subscription:
+          - Endpoint:  "anandprg@amazon.com"
+            Protocol: "email"
+  CTIPAMLifeCycleLambda:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: "IPAM-ControlTower-Integration-LifeCycle"
+      Description: Function to handle Control Tower LifeCycle
+      Handler: index.lambda_handler
+      Role: !GetAtt 
+        - CTIPAMLifeCycleLambdaRole
+        - Arn
+      Code:
+        S3Bucket: !Ref 'LambdaZipsBucket'
+        S3Key: !Sub '${LambdaPrefix}ctipam_ct_integration_1.0.0.zip'
+      Runtime: python3.8
+      MemorySize: 128
+      Timeout: 300
+      Environment:
+        Variables:
+          MASTER_ACCOUNT: !Ref 'AWS::AccountId'         
+          EXECUTION_ROLE_ARN: !Join ['',['arn:aws:iam::',  !Ref NetworkAccountId, ':role/AWSControlTowerExecution']]
+          IPAM_SCOPE: !Ref IpamScope
+          IPAM_POOL_PREFIX: !Ref IpamPoolPrefixLength
+          IPAM_REGION: !Ref 'AWS::Region'
+          SNS_TOPIC: !Ref IpamSnsTopic
+    DependsOn:
+      - CopyZips
+  CTIPAMLifeCycleLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: Role used by Lambda for life cycle / new account creation
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSCloudFormationFullAccess
+        - arn:aws:iam::aws:policy/AWSResourceAccessManagerFullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+        - arn:aws:iam::aws:policy/AWSOrganizationsFullAccess
+      Policies:
+        - PolicyName: LambdaPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: STSAssumeRole
+                Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource: 
+                  - 'arn:aws:iam::*:role/AWSControlTowerExecution'
+              - Sid: IAMOperations
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/AWSControlTowerStackSetRole'
+              - Sid: S3Operations
+                Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                Resource: 
+                  - !Join ['',['arn:aws:s3:::', !Ref LambdaZipsBucket ,'*']]
+  NetworkingStackSet:
+      Type: AWS::CloudFormation::StackSet
+      Properties:
+        StackSetName: 'CTNetworkingStackSet'
+        AdministrationRoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/AWSControlTowerStackSetRole'
+        ExecutionRoleName: AWSControlTowerExecution
+        PermissionModel: SELF_MANAGED
+        Parameters: 
+          - ParameterKey: 'RegionSelection' 
+            ParameterValue: !Join 
+              - ','
+              - !Ref RegionSelection
+          - ParameterKey: 'TopLevelPoolCidr' 
+            ParameterValue: !Ref TopLevelPoolCidr
+          - ParameterKey: 'IpamScope' 
+            ParameterValue: !Ref IpamScope          
+          - ParameterKey: 'IpamPoolPrefixLength' 
+            ParameterValue: !Ref IpamPoolPrefixLength
+          - ParameterKey: 'AccPoolPrefixLength' 
+            ParameterValue: !Ref AccPoolPrefixLength
+          - ParameterKey: 'AccEnvName' 
+            ParameterValue: !Join 
+              - ','
+              - !Ref AccEnvName
+          - ParameterKey: 'RepoRootURL' 
+            ParameterValue: !Ref RepoRootURL
+          - ParameterKey: 'LambdaBucket' 
+            ParameterValue: !Ref LambdaBucket 
+          - ParameterKey: 'LambdaPrefix' 
+            ParameterValue: !Ref LambdaPrefix                  
+        StackInstancesGroup:
+          - Regions:
+              - !Ref 'AWS::Region'
+            DeploymentTargets:
+              Accounts:
+                - !Ref NetworkAccountId      
+        Capabilities:
+          - CAPABILITY_NAMED_IAM
+        TemplateURL: !Sub '${RepoRootURL}/ipamnetworkingStack.yaml'                  
+  LambdaZipsBucket:
+    Type: AWS::S3::Bucket
+  CopyZips:
+    Type: Custom::CopyZips
+    Properties:
+      ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
+      DestBucket: !Ref 'LambdaZipsBucket'
+      SourceBucket: !Ref 'LambdaBucket'
+      Prefix: !Ref 'LambdaPrefix'
+      Objects:
+        - ctipam_ct_integration_1.0.0.zip
+  CopyZipsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+      Policies:
+        - PolicyName: lambda-copier
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${LambdaBucket}/${LambdaPrefix}*'
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/${LambdaPrefix}*'
+  CopyZipsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Copies objects from a source S3 bucket to a destination
+      Handler: index.handler
+      Runtime: python3.8
+      Role: !GetAtt 'CopyZipsRole.Arn'
+      Timeout: 240
+      Code:
+        ZipFile: |
+          import json
+          import logging
+          import threading
+          import boto3
+          import cfnresponse
+          def copy_objects(source_bucket, dest_bucket, prefix, objects):
+              s3 = boto3.client('s3')
+              for o in objects:
+                  key = prefix + o
+                  copy_source = {
+                      'Bucket': source_bucket,
+                      'Key': key
+                  }
+                  print('copy_source: %s' % copy_source)
+                  print('dest_bucket = %s'%dest_bucket)
+                  print('key = %s' %key)
+                  s3.copy_object(CopySource=copy_source, Bucket=dest_bucket,
+                        Key=key)
+          def delete_objects(bucket, prefix, objects):
+              s3 = boto3.client('s3')
+              objects = {'Objects': [{'Key': prefix + o} for o in objects]}
+              s3.delete_objects(Bucket=bucket, Delete=objects)
+          def timeout(event, context):
+              logging.error('Execution is about to time out, sending failure response to CloudFormation')
+              cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)
+          def handler(event, context):
+              # make sure we send a failure to CloudFormation if the function
+              # is going to timeout
+              timer = threading.Timer((context.get_remaining_time_in_millis()
+                        / 1000.00) - 0.5, timeout, args=[event, context])
+              timer.start()
+              print('Received event: %s' % json.dumps(event))
+              status = cfnresponse.SUCCESS
+              try:
+                  source_bucket = event['ResourceProperties']['SourceBucket']
+                  dest_bucket = event['ResourceProperties']['DestBucket']
+                  prefix = event['ResourceProperties']['Prefix']
+                  objects = event['ResourceProperties']['Objects']
+                  if event['RequestType'] == 'Delete':
+                      delete_objects(dest_bucket, prefix, objects)
+                  else:
+                      copy_objects(source_bucket, dest_bucket, prefix, objects)
+              except Exception as e:
+                  logging.error('Exception: %s' % e, exc_info=True)
+                  status = cfnresponse.FAILED
+              finally:
+                  timer.cancel()
+                  cfnresponse.send(event, context, status, {}, None)

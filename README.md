@@ -1,4 +1,6 @@
-## My Project
+## Integrating Amazon IPAM with AWS Control Tower
+
+This repository contains the CloudFormation Templates and source code for AWS Lambda functions used in the integration. 
 
 TODO: Fill this README out!
 
