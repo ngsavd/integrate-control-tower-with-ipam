@@ -34,144 +34,150 @@ Refer to this guide to setup your AWS Control Tower.
 3.Create an OU structure for your Workload Accounts to represent your environments. Example shown here talk about 2 environments Production and SDLC and Figure 1 shows 2 OUs Prod OU and SDLC OU. Make note of these OU names in your environment.
 
 Deployment Steps
+Deploying a solution in AWS for the first time using source code from GitHub involves several steps. Here’s a step-by-step guide to help you deploy using AWS CloudFormation, assuming you already have your packages (ctipam_ct_integration_1.0.0.zip and ctipam_helper_1.0.0.zip) uploaded to an S3 bucket.
+You can reference the Deployment Steps section of the blog post for details.
+### Step 1: Prepare Your Environment
 
-In the AWS Control Tower management account, go to the Amazon VPC IP Address Manager console, select settings and click on edit to specify the Networking account id under the delegated administrator account.
+1. **Set Up AWS CLI**: Ensure that the AWS CLI is installed and configured with the appropriate credentials and region.
+   ```bash
+   aws configure
+   ```
 
-The networking account would be delegated as the IPAM administrator.
-Figure 5. Delegating the Networking Account as IPAM Administrator
+2. **Log in to the AWS Management Console**: Navigate to the AWS Management Console and log in with your credentials.
 
-Figure 5. Delegating the Networking Account as IPAM Administrator
-Figure 6. Verify that the Networking Account is delegated as the IPAM Administrator
+### Step 2: Upload Your Lambda Packages to S3
 
-Figure 6. Verify that the Networking Account is delegated as the IPAM Administrator
+1. **Upload the Packages**: If you haven't done this already, upload your Lambda package zip files to an S3 bucket.
+   - Go to the **S3** service in the AWS Management Console.
+   - Click on your bucket or create a new one.
+   - Click on the **Upload** button and select your zip files (`ctipam_ct_integration_1.0.0.zip` and `ctipam_helper_1.0.0.zip`).
+   - Note the **Bucket Name** and **Key Prefix** (if any) for later use.
 
-    Login to the AWS Control Tower management account, go to the AWS Resource Access Manager console. On the Settings page, select the Enable sharing with AWS Organizations check box.
+### Step 3: Prepare the CloudFormation Template
 
-Figure 7. On the Settings page, the Enable sharing with AWS Organizations check box is selected.
+1. **Obtain CloudFormation Template**: Ensure you have a CloudFormation template from the blog post
 
-Figure 7. On the Settings page, the Enable sharing with AWS Organizations check box is selected.
+2. **Modify Parameters**: You should adjust the parameters in the CloudFormation template- `LambdaBucket` and `LambdaPrefix` parameters for your template, you should provide these values.
 
-Login to the networking account, go to Amazon VPC IP Address Manager console . Select Create IPAM and then Select the check box to Allow Amazon VPC IP Address Manager to replicate data from the member account(s) into the Amazon VPC IP Address Manager delegate account.
+### Step 4: Deploy Using AWS CloudFormation
 
-Figure 8. Creating IPAM Pool
+1. **Navigate to CloudFormation Console**: Go to the **CloudFormation** service in the AWS Management Console.
 
-Figure 8. Creating IPAM Pool
+2. **Create a New Stack**:
+   - Click on **Create stack**.
+   - Choose **With new resources (standard)**.
 
-    Provide Name, Description and Operating Regions for the Amazon VPC IP Address Manager.
+3. **Specify the Template Source**:
+   - You can upload your CloudFormation template file or provide an Amazon S3 URL if the template is stored in an S3 bucket.
 
-Figure 9. Populating the IPAM Pool details
+4. **Specify Stack Details**:
+   - Enter a name for your stack.
+   - Provide the parameters required by your template:
+     - **LambdaBucket**: Enter the name of the S3 bucket where you uploaded your Lambda packages.
+     - **LambdaPrefix**: Enter the prefix used for your Lambda packages if applicable.
 
-Figure 9. Populating the IPAM Pool details
+5. **Configure Stack Options**: You can configure additional stack options such as tags, permissions, and advanced options as needed.
 
-    When you create IPAM instance, Amazon automatically does the following:
+6. **Review and Create**:
+   - Review your stack settings and parameters.
+   - Click **Create stack**.
 
-        Returns a globally unique resource ID (IpamId) for the IPAM.
-        Creates a default public scope (PublicDefaultScopeId) and a default private scope (PrivateDefaultScopeId).
+### Step 5: Monitor and Validate Deployment
 
-    In the Amazon VPC IP Address Manager console, go to Scopes and make note of the  PrivateDefaultScopeId
+1. **Monitor the Stack Creation**:
+   - You can monitor the progress of your stack creation in the **Events** tab of the CloudFormation console.
+   - Ensure that all resources are created successfully and there are no errors.
 
-Figure 10. Verifying the IPAM Scopes
+2. **Verify the Deployment**:
+   - After stack creation is complete, verify that your Lambda functions are correctly deployed.
+   - Check the **Lambda** service to ensure your functions are listed and properly configured.
 
-Figure 10. Verifying the IPAM Scopes
+3. **Test Your Lambda Functions**: You can test your Lambda functions to ensure they are working as expected.
 
-    In the AWS Control Tower management account, go to the CloudFormation console, click on Stacks in the navigation pane, click on Create Stack and select “With new resources” and specify this CloudFormation template to deploy a solution that provides AWS Control Tower integration with Amazon VPC IP Address Manager. In the next screen, The CloudFormation stack creation presents with the screen shown below requiring input parameters for the deployment. CloudFormation stacks are deployed using the console as explained in the documentation through console or CLI.
 
-Figure 11. Deploying the CloudFormation Stack in the AWS Control Tower management account
 
-Figure 11. Deploying the CloudFormation Stack in the AWS Control Tower management account.
+To update your Lambda function and create a new package file, you can follow these steps. This guide assumes you're working on a local development environment and have the necessary permissions to modify and deploy Lambda functions.
 
-The input parameters required are explained below
+### Step-by-Step Guide
 
-Centralized Networking resources
-NetworkingAcciontid 	AWS Account ID of the networking account in your multi-account environment. Networking account holds the Amazon IPAM configuration and shares the IPAM pools with the member accounts.
-Lambda Source Repository
-LambdaBucket 	Name of the S3 bucket containing the Lambda package and templates. You can use default value of “ctipam-public-resources2”
-LambdaPrefix 	The prefix of the S3 bucket containing the Lambda package. You can use default value of packages/”.
-Other parameters
-AccEnvName 	Comma separated list of evironment names for Regional IPAM pools. This parameter will used to create pools for the specific environment within a Region. Default values are Prod OU, SLDC OU. The solution expects the names of the environments to match the OU name.
-AccPoolPrefixLength 	Prefix Length for Environment level IPAM Pools.
-IpamPoolPrefixLength 	Prefix Length for Regional IPAM Pools.
-IpamScope 	Top level IPAM  Scope for the AWS Control Tower environment.
-RegionSelection 	Regions for IPAM  Sub-Pool creation.
-RepoRootURL 	The full path to the S3 bucket containing the YAML resources.
-TopLevelPoolCidr 	Top level pool for the IPAM in the Multi-account AWS Control Tower Environment .
+#### 1. Modify the Lambda Function Code
 
-    After the CloudFormation is deployed, login to the networking account and to go the VPC IP Address Manager Console to verify that the top level pool, Regional pools and Environment level pools along with the Allocation tags(Prod OU and SLDC).
+1. **Locate Your Lambda Function Code**:
+   - Ensure you have the `index.py` file you want to modify. This file should be part of the Lambda function you are updating.
 
-Figure 12. Verifying the pools created in the Networking Account after the CloudFormation deployment.
+2. **Update the Code**:
+   - Make your necessary code changes to `index.py` within the Lambda function’s directory.
 
-Figure 12. Verifying the pools created in the Networking Account after the CloudFormation deployment.
+#### 2. Prepare the New Package
 
-    Under the top level pool (ipam-pool-0e37f71bc40741216), 2 Regional pools are created in us-west-2 (ipam-pool-0027f2d7cec2a6474) and us-east-1 (ipam-pool-0ae80c2062300cbf8). Under each Region, you will find 2 Environmental pools created.
-    Environment pools (ipam-pool-0284d5e9f938354d9 and ipam-pool-0da932e60b3d5deb0) in Region us-west-2 and Environment pools (ipam-pool-069a9bbceeb3b2ba7 and ipam-pool-0c333d93e55f5f922 ) in us-east-1.
-    You can verify the Allocation tag of each Environment Pool. Click on the Environment pool and go to the compliancy tab. Under the Resource tag compliancy section, verify the allocation tag.
+1. **Copy `index.py` to Libraries Folder**:
+   - Move the updated `index.py` file to the `libraries` folder where all the dependencies are stored.
+   ```bash
+   cp index.py ~/integrate-control-tower-with-ipam/libraries
+   ```
 
-Figure 13. Verifying the Allocation tag of each Environment Pool.
+2. **Verify the Copy**:
+   - Check that `index.py` is now in the `libraries` folder.
+   ```bash
+   cd ~/integrate-control-tower-with-ipam/libraries
+   ls
+   ```
 
-Figure 13. Verifying the Allocation tag of each Environment Pool.
-Testing the Solution
+3. **Zip the Contents**:
+   - Navigate to the `libraries` folder and create a zip file of its contents, then move it to the `packages` folder.
+   ```bash
+   zip -r ../packages/ctipam_ct_integration_2.0.0.zip .
+   ```
 
-    You can test the solution by creating a new member account using AWS Control Tower account factory in one of the OUs. Make sure you create the account under an OU which maps to a particular environment. Select the Organizational unit for the member account : Prod OU or SDLC OU.
+4. **Remove `index.py` from Libraries**:
+   - After zipping, delete `index.py` from the `libraries` folder to clean up.
+   ```bash
+   rm -f index.py
+   ```
 
-Figure 14. Creating new member Account using Control Tower Account Factory.
+5. **Verify the New Zip File**:
+   - Ensure the zip file has been created in the `packages` folder.
+   ```bash
+   cd packages
+   ls
+   ```
 
-Figure 14. Creating new member Account using Control Tower Account Factory.
+#### 3. Update Lambda Function in AWS
 
-    The example here shows an account CTTEST created under Prod OU.
+1. **Upload the New Package to S3**:
+   - If you’re using AWS S3 for Lambda packages, upload the new zip file to your S3 bucket.
+   ```bash
+   aws s3 cp ctipam_ct_integration_2.0.0.zip s3://your-bucket-name/path/to/ctipam_ct_integration_2.0.0.zip
+   ```
 
-Figure 15. Verify the new member Account is created under AWS Control Tower
+2. **Update Lambda Function via AWS Management Console**:
+   - Go to the **Lambda** service in the AWS Management Console.
+   - Select the function you are updating.
+   - Choose **Upload from Amazon S3** or **Upload from file** and select your new zip file.
 
-Figure 15. Verify the new member Account is created under AWS Control Tower
+3. **Update Lambda Function via AWS CLI**:
+   - Alternatively, you can use the AWS CLI to update your Lambda function.
+   ```bash
+   aws lambda update-function-code --function-name your-lambda-function-name --s3-bucket your-bucket-name --s3-key path/to/ctipam_ct_integration_2.0.0.zip
+   ```
 
-    Once the member account is created, you can login into to the member account. Go to the Amazon VPC IP Address Manager console, and select Pools. This will show you the list of IPAM pools that match the allocation tag with the member account’s OU name.
+#### 4. Test the Updated Lambda Function
 
-Figure 16. Verify the IPAM Pools shared with the new member Account in the Amazon VPC IP Address Manager.
+1. **Verify the Update**:
+   - After updating the Lambda function, test it using the AWS Management Console or AWS CLI.
+   - Check CloudWatch logs to ensure there are no errors and that the function operates as expected.
 
-Figure 16. Verify the IPAM Pools shared with the new member Account in the Amazon VPC IP Address Manager.
+2. **Debug if Necessary**:
+   - Review CloudWatch logs and any error messages to troubleshoot issues that may arise from the update.
 
-    You can verify the Allocation tag of each shared Environment Pool to check whether it matches the OU name of the member account. Click on the shared Environment pool and go to the compliancy tab. Under the Resource tag compliancy section, verify the allocation tag.
-    The allocation tag matches the Organization unit name which in this case is Prod OU.
+### Summary
 
-Figure 17. Verify the Allocation tag of each shared Environment Pool in IPAM Pools shared with the new member Account.
+- **Update Code**: Modify your `index.py` file as needed.
+- **Prepare Package**: Copy `index.py` to `libraries`, zip the `libraries` folder contents, and remove the temporary file.
+- **Upload & Deploy**: Upload the new zip file to S3 or directly to Lambda, and update your Lambda function.
+- **Test**: Validate the changes by testing the Lambda function and checking logs for any issues.
 
-Figure 17. Verify the Allocation tag of each shared Environment Pool in IPAM Pools shared with the new member Account.
-Figure 18. Verify the Allocation tag of each shared Environment Pool in IPAM Pools shared with the new member Account.
-
-Figure 18. Verify the Allocation tag of each shared Environment Pool in IPAM Pools shared with the new member Account.
-
-    Additionally, you can go the Resource Access Manager in the member account to confirm the pools shared with the member account. From the resource share, you can verify the Owner of the share which is the AWS Control Tower management account.
-
-Figure 19. Verify the IPAM Pools shared with the new member Account in the Amazon Resource Access Manager.
-
-Figure 19. Verify the IPAM Pools shared with the new member Account in the Amazon Resource Access Manager.
-
-    In the member account, Now go the VPC console and try creating VPC in one of the Regions specified in the CloudFormation template. You would now be able to select the IPAM-allocated IPv4 CIDR block.
-
-Figure 20. Creating VPC in the new member account and verifying that the IPAM pools are shared.
-
-Figure 20. Creating VPC in the new member account and verifying that the IPAM pools are shared.
-Cleanup
-
-Follow these steps to remove the resources deployed by this solution. These steps will remove the VPCs created by this solution.
-
-    In the member accounts, remove any VPC that are using IPAM assigned IP addresses.
-    In the networking account, de-provision the CIDR blocks provisioned to the IPAM pools
-    In the networking account, delete the CloudFormation stack with name starting with StackSet-CTNetworkingStackSet- that was deployed as part of this solution.
-    In the AWS Control Tower management account, delete the main CloudFormation stack that was deployed for this solution.
-
-Considerations
-
-Keep in mind the following considerations with respect to this solution.
-
-    While the solution shares environment pools from all Regions to the member account, user can only use the environment pool from a particular Region where the VPC is being created.
-    The solution presented here covers the scenario of private IP addressing within your environment. This can be modified to support your IPAM pool plan requirements for public IP addressing. Refer to this tutorial to see how you can use your own public IP space with IPAM.
-    While this solution implements a IPAM pool hierarchy based on environment, customers can choose to implement their own IPAM hierarchy based on their needs. Refer to other example IPAM pool plans.
-    While the solution will allow for creating summarized prefixes in route tables and security groups, as your environment scales you may still have large number of entries to connect your evolving networks. Consider using Managed Prefix lists to simplify route table and security group configurations.
-    You are charged hourly for each active IP address that IPAM monitors. An active IP address is defined as an IP address assigned to a resource such as an EC2 instance or an Elastic Network Interface (ENI). Refer to IPAM pricing
-
-Summary
-
-This blog presented an approach to integrating Amazon IPAM with a multi-account environment of AWS Control Tower. As your environment scales and your teams create new accounts, this solution will help you to define only the right set of IPAM pools will be shared with those accounts. This reduces the manual effort required by network administrators to perform pool allocations and manage IP addressing. It allows the development teams to be more agile by taking away the request approval workflow and effort in ensuring unique IP block allocations. This automation helps organizations to extend the AWS Control Tower benefits of governance and business agility to networking and IP address management.
+You can repeat these steps for updating the `ipam-pool-lambda` function by following the same process. If you have any more questions or run into issues, feel free to ask!
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
