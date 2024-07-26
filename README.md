@@ -33,15 +33,13 @@ Refer to this guide to setup your AWS Control Tower.
 
 3.Create an OU structure for your Workload Accounts to represent your environments. Example shown here talk about 2 environments Production and SDLC and Figure 1 shows 2 OUs Prod OU and SDLC OU. Make note of these OU names in your environment.
 
-Deployment Steps
-Deploying a solution in AWS for the first time using source code from GitHub involves several steps. Here’s a step-by-step guide to help you deploy using AWS CloudFormation, assuming you already have your packages (ctipam_ct_integration_1.0.0.zip and ctipam_helper_1.0.0.zip) uploaded to an S3 bucket.
+## Deployment Steps
+### For first time deployment: 
+Deploying a solution in AWS for the first time using source code from GitHub involves several steps. Here’s a step-by-step guide to help you deploy using AWS CloudFormation.
 You can reference the Deployment Steps section of the blog post for details.
 ### Step 1: Prepare Your Environment
 
 1. **Set Up AWS CLI**: Ensure that the AWS CLI is installed and configured with the appropriate credentials and region.
-   ```bash
-   aws configure
-   ```
 
 2. **Log in to the AWS Management Console**: Navigate to the AWS Management Console and log in with your credentials.
 
@@ -50,14 +48,14 @@ You can reference the Deployment Steps section of the blog post for details.
 1. **Upload the Packages**: If you haven't done this already, upload your Lambda package zip files to an S3 bucket.
    - Go to the **S3** service in the AWS Management Console.
    - Click on your bucket or create a new one.
-   - Click on the **Upload** button and select your zip files (`ctipam_ct_integration_1.0.0.zip` and `ctipam_helper_1.0.0.zip`).
-   - Note the **Bucket Name** and **Key Prefix** (if any) for later use.
+   - Click on the **Upload** button and select your zip files from the packages folder (`ctipam_ct_integration_1.0.0.zip` and `ctipam_helper_1.0.0.zip`).
+   - Note the **Bucket Name** and **Key Prefix** (if any) for later use in Step 3.
 
 ### Step 3: Prepare the CloudFormation Template
 
-1. **Obtain CloudFormation Template**: Ensure you have a CloudFormation template from the blog post
+1. **Obtain CloudFormation Template**: Ensure you have a CloudFormation template  using the cloudformation template(template name) from the template folder
 
-2. **Modify Parameters**: You should adjust the parameters in the CloudFormation template- `LambdaBucket` and `LambdaPrefix` parameters for your template, you should provide these values.
+2. **Modify Parameters**: You should adjust the parameters in the CloudFormation template- `LambdaBucket` and `LambdaPrefix` parameters for your template, based on values from Step 2.
 
 ### Step 4: Deploy Using AWS CloudFormation
 
@@ -92,21 +90,14 @@ You can reference the Deployment Steps section of the blog post for details.
    - After stack creation is complete, verify that your Lambda functions are correctly deployed.
    - Check the **Lambda** service to ensure your functions are listed and properly configured.
 
-3. **Test Your Lambda Functions**: You can test your Lambda functions to ensure they are working as expected.
-
-
-
+### To update the code of existing deployment
 To update your Lambda function and create a new package file, you can follow these steps. This guide assumes you're working on a local development environment and have the necessary permissions to modify and deploy Lambda functions.
-
-### Step-by-Step Guide
 
 #### 1. Modify the Lambda Function Code
 
-1. **Locate Your Lambda Function Code**:
-   - Ensure you have the `index.py` file you want to modify. This file should be part of the Lambda function you are updating.
+   1. Ensure you have the `index.py` file you want to modify(cti-intergation-lambda or ipam-pool-lambda). This file should be part of the Lambda function you are updating.
 
-2. **Update the Code**:
-   - Make your necessary code changes to `index.py` within the Lambda function’s directory.
+   2. Make your necessary code changes to `index.py` within the Lambda function’s directory.
 
 #### 2. Prepare the New Package
 
@@ -126,7 +117,7 @@ To update your Lambda function and create a new package file, you can follow the
 3. **Zip the Contents**:
    - Navigate to the `libraries` folder and create a zip file of its contents, then move it to the `packages` folder.
    ```bash
-   zip -r ../packages/ctipam_ct_integration_2.0.0.zip .
+   zip -r ../packages/ctipam_ct_integration_1.0.0.zip .
    ```
 
 4. **Remove `index.py` from Libraries**:
@@ -147,7 +138,7 @@ To update your Lambda function and create a new package file, you can follow the
 1. **Upload the New Package to S3**:
    - If you’re using AWS S3 for Lambda packages, upload the new zip file to your S3 bucket.
    ```bash
-   aws s3 cp ctipam_ct_integration_2.0.0.zip s3://your-bucket-name/path/to/ctipam_ct_integration_2.0.0.zip
+   aws s3 cp ctipam_ct_integration_1.0.0.zip s3://your-bucket-name/path/to/ctipam_ct_integration_1.0.0.zip
    ```
 
 2. **Update Lambda Function via AWS Management Console**:
@@ -158,7 +149,7 @@ To update your Lambda function and create a new package file, you can follow the
 3. **Update Lambda Function via AWS CLI**:
    - Alternatively, you can use the AWS CLI to update your Lambda function.
    ```bash
-   aws lambda update-function-code --function-name your-lambda-function-name --s3-bucket your-bucket-name --s3-key path/to/ctipam_ct_integration_2.0.0.zip
+   aws lambda update-function-code --function-name your-lambda-function-name --s3-bucket your-bucket-name --s3-key path/to/ctipam_ct_integration_1.0.0.zip
    ```
 
 #### 4. Test the Updated Lambda Function
@@ -170,12 +161,6 @@ To update your Lambda function and create a new package file, you can follow the
 2. **Debug if Necessary**:
    - Review CloudWatch logs and any error messages to troubleshoot issues that may arise from the update.
 
-### Summary
-
-- **Update Code**: Modify your `index.py` file as needed.
-- **Prepare Package**: Copy `index.py` to `libraries`, zip the `libraries` folder contents, and remove the temporary file.
-- **Upload & Deploy**: Upload the new zip file to S3 or directly to Lambda, and update your Lambda function.
-- **Test**: Validate the changes by testing the Lambda function and checking logs for any issues.
 
 You can repeat these steps for updating the `ipam-pool-lambda` function by following the same process. If you have any more questions or run into issues, feel free to ask!
 ## Security
