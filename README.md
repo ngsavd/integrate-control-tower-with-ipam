@@ -26,12 +26,12 @@ The Figure below shows the sequence of events when the CloudFormation is deploye
 
 # Deploy the solution
 ## Prerequisites
-1.This solution requires a AWS Control Tower landing zone setup in your account. 
+1. This solution requires a AWS Control Tower landing zone setup in your account. 
 Refer to this [**guide](https://docs.aws.amazon.com/controltower/latest/userguide/getting-started-with-control-tower.html) to setup your AWS Control Tower.
 
-2.In your AWS Control Tower environment, identify the networking account. If it does not exist, create a Networking account which will hold your networking resources. For this solution, Networking account will be setup as a delegated administrator for IPAM. The parent OU of Networking account can be as per your existing structure or as per your choice. Make a note of the Networking account id.
+2. In your AWS Control Tower environment, identify the networking account. If it does not exist, create a Networking account which will hold your networking resources. For this solution, Networking account will be setup as a delegated administrator for IPAM. The parent OU of Networking account can be as per your existing structure or as per your choice. Make a note of the Networking account id.
 
-3.Create an OU structure for your Workload Accounts to represent your environments. Example shown here talk about 2 environments Production and SDLC and Figure 1 shows 2 OUs Prod OU and SDLC OU. Make note of these OU names in your environment.
+3. Create an OU structure for your Workload Accounts to represent your environments. Example shown here talk about 2 environments Production and SDLC and Figure 1 shows 2 OUs Prod OU and SDLC OU. Make note of these OU names in your environment.
 
 4. If using the AWS CLI, Ensure that the AWS CLI is installed and configured with the appropriate credentials and region. For console access  Navigate to the AWS Management Console and log in with your credentials.
 
@@ -55,7 +55,7 @@ You can reference the Deployment Steps section of the blog post for details.
 
 ### Step 3: Deploy using CloudFormation
 
-1. **Launch CloudFormation Stack**: Launch CloudFormation stack using the cloudformation template **privatelink-governance.yaml** from the templates folder of this repo.
+1. **Launch CloudFormation Stack**: Launch CloudFormation stack using the cloudformation template **ipam-controltower-integration.template.yaml** from the templates folder of this repo.
 
 2. **Modify Parameters**: You should adjust the parameters in the CloudFormation template- `LambdaBucket` and `LambdaPrefix` parameters for your template, based on values from Step 2. You should adjust the paramter `RepoRootURL` for your template based on value from Step 1. Specify other parameters as required for your setup.
 
