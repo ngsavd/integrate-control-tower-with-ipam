@@ -41,7 +41,7 @@ Parameters:
   RepoRootURL:
     Type: String
     Description: The full path to the S3 bucket containing the YAML resources.
-    Default: https://mod-ipamaft-1.s3.amazonaws.com/ct-blogs-content/ctipam-public-resources/templates/
+    Default: https://mod-ipamaft-1.s3.amazonaws.com/ct-blogs-content/ctipam-public-resources/templates
 Resources:
   IpamSnsTopic:
     Type : AWS::SNS::Topic
